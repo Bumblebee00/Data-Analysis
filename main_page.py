@@ -11,7 +11,7 @@ st.set_page_config(page_title='Bitcoin Blockchain live analysis', page_icon=':ba
 # Title and bitcoin logos. a lot of them.
 st.title('Analisi in diretta di Bitcoin - BitPolito')
 bitcoin_logo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png'
-bitpolito_logo = Image.open("bitpolito_logo2.png")
+bitpolito_logo = Image.open("bitpolito_logo.png")
 col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns(11)
 col1.image(bitcoin_logo, width=50)
 col2.image(bitpolito_logo, width=50)
