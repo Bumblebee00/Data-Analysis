@@ -1,0 +1,7 @@
+streamlit
+numpy
+plotly.express
+pandas
+requests
+datetime
+PIL
