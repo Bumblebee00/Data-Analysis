@@ -4,4 +4,4 @@ pandas
 requests
 datetime
 Pillow
-matplotlib.pyplot
+matplotlib
