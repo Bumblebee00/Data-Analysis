@@ -84,7 +84,7 @@ del cities[None]
 # display top 10 cities in a bullet list
 col2.write("Top 10 città per numero di nodi:")
 for i, info in enumerate(list(cities)[:10]):
-    city = info.split('/')[1]
+    city = info.split('/')[1].replace('_', ' ')
     continent = info.split('/')[0]
     col2.write(f"{i+1}) {city} ({continent}): **{cities[info]} nodi**")
 
