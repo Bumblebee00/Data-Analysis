@@ -6,24 +6,54 @@ from datetime import datetime, timedelta
 from PIL import Image
 
 # ------------- Title of the page -------------
-st.set_page_config(page_title='Bitcoin Blockchain live analysis', page_icon=':bar_chart:', layout='wide')
+st.set_page_config(page_title='Bitcoin Blockchain live analysis', page_icon='₿', layout='wide')
 # Title and bitcoin logos. a lot of them.
 st.title('Analisi in diretta di Bitcoin - BitPolito')
 bitcoin_logo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png'
 bitpolito_logo = Image.open("bitpolito_logo.png")
-col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 = st.columns(11)
-col1.image(bitcoin_logo, width=50)
-col2.image(bitpolito_logo, width=50)
-col3.image(bitcoin_logo, width=50)
-col4.image(bitpolito_logo, width=50)
-col5.image(bitcoin_logo, width=50)
-col6.image(bitpolito_logo, width=50)
-col7.image(bitcoin_logo, width=50)
-col8.image(bitpolito_logo, width=50)
-col9.image(bitcoin_logo, width=50)
-col10.image(bitpolito_logo, width=50)
-col11.image(bitcoin_logo, width=50)
+col = st.columns(12)
+logos = [bitcoin_logo, bitpolito_logo] * 6
+for i in range(12):
+    col[i].image(logos[i], width=50)
 
+TODO = """ TODO: personalize this
+# Configure CSS styles
+st.markdown('''
+<style>
+    #button-links {
+        text-decoration:none; 
+        background-color:#f7931a; 
+        color:white; 
+        padding:20px; 
+        display:block;
+        box-shadow: 2px 2px 2px #FFFFFF;
+        margin-bottom: 10px;
+    }
+    /*center metric label*/
+    [data-testid="stMetricLabel"] {
+        justify-content: center;
+    }
+
+    /*center metric value*/
+    [data-testid="stMetricValue"] {
+        color: #F7931A;
+    }
+
+    [data-testid="metric-container"] {
+        box-shadow: 2px 2px 2px #FFFFFF;
+        border: 2px solid #f7931a;
+        padding: 10px;
+    }
+
+    .css-z5fcl4 {
+        padding-top: 36px;
+        padding-bottom: 36px;
+    }
+
+    .css-1544g2n {
+        padding-top: 36px;
+    }
+</style>''', unsafe_allow_html=True)"""
 
 # ------------- Bitcoin Nodes -------------
 # create two columns
@@ -84,7 +114,7 @@ def get_blockchaincom_data(url, col):
     return df 
 
 @st.cache_data
-def load_chart_data():
+def load_heavy_data():
     # Get historical BTC address data from Blockchain.com
     addr_url = 'https://api.blockchain.info/charts/n-unique-addresses?timespan=all&format=json'
     addr_df = get_blockchaincom_data(addr_url, "Addresses")
@@ -98,15 +128,20 @@ def load_chart_data():
     hs_url = 'https://api.blockchain.info/charts/hash-rate?timespan=all&format=json'
     hs_df = get_blockchaincom_data(hs_url, "Hash")
 
-    return addr_df, tx_df, hs_df
+    # Get latest and second to last block data from Blockchain.com
+    lastblock = requests.get('https://blockchain.info/latestblock').json()
+    second_to_last_block = requests.get(f'https://blockchain.info/block-height/{lastblock["height"]-1}?format=json').json()
 
-addr_df, tx_df, hash_df = load_chart_data()
+
+    return addr_df, tx_df, hs_df, lastblock, second_to_last_block
+
+addr_df, tx_df, hash_df, lastblock, second_to_last_block = load_heavy_data()
 addr_df = addr_df.loc[(addr_df['Date'] >= pd.Timestamp(start_date)) & (addr_df['Date'] <= pd.Timestamp(end_date))]
 tx_df = tx_df.loc[(tx_df['Date'] >= pd.Timestamp(start_date)) & (tx_df['Date'] <= pd.Timestamp(end_date))]
 hash_df = hash_df.loc[(hash_df['Date'] >= pd.Timestamp(start_date)) & (hash_df['Date'] <= pd.Timestamp(end_date))]
 
 
-# ------------- Display network data in charts -------------
+# ------------- Display network data in charts and metrics -------------
 col1, col2 = st.columns(2)
 # Create a line chart of hash rate
 with col1:
@@ -119,10 +154,23 @@ with col2:
     current_hash = round(hash_df.iloc[0]['Hash']/10**9, 2)
     delta = round((hash_df.iloc[0]['Hash'] - hash_df.iloc[1]['Hash'])/10**9, 2)
     col2.metric(label="Hash rate attuale", value=f'{current_hash} TH/s', delta=f'{delta} TH/s')
+    st.divider()
     # metric for lastest block time
-    last = requests.get('https://blockchain.info/latestblock').json()
-    time_diff = datetime.now() - datetime.fromtimestamp(last['time'])
-    col2.metric(label="Ultimo blocco minato ", value=f'{time_diff.seconds//60} minuti e {time_diff.seconds%60} seccondi fa')
+    time_since_last_block = datetime.now() - datetime.fromtimestamp(lastblock['time'])
+    last_block_minimg_time = datetime.fromtimestamp(lastblock['time']) - datetime.fromtimestamp(second_to_last_block['blocks'][0]['time'])
+    m = '-' if last_block_minimg_time.seconds > 10*60 else ''
+    
+    col2.metric("Ultimo blocco minato ",
+        f'{time_since_last_block.seconds//60} minuti e {time_since_last_block.seconds%60} seccondi fa',
+        f"{m}in {last_block_minimg_time.seconds//60} minuti e {last_block_minimg_time.seconds%60} secondi",)
+    st.divider()
+    # metric for current fees
+    st.write("Commissioni (in sat/vB) per includere una transazione in ...")
+    fees = requests.get('https://blockstream.info/api/fee-estimates').json()
+    col2_1, col2_2, col2_3 = st.columns(3)
+    col2_1.metric("1 blocco", f"{fees['1']:0.1f}")
+    col2_2.metric("6 blocchi", f"{fees['6']:0.1f}")
+    col2_3.metric("18 blocchi", f"{fees['18']:0.1f}")
 
 
 col1, col2 = st.columns(2)
@@ -137,4 +185,5 @@ with col2:
     chart_addr.update_layout(yaxis_title='Active Addresses')
     st.plotly_chart(chart_addr, use_container_width=True)
 
-st.write("Fonte: https://www.blockchain.com/charts")
+st.write("Fonte: https://www.blockchain.info")
+st.write("Fonte: https://blockstream.info")
