@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+streamlit = "*"
+plotly = "==5.14.1"
+pandas = "*"
+requests = "*"
+datetime = "*"
+pillow = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"

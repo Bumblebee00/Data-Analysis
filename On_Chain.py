@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 from datetime import datetime, timedelta
 from PIL import Image
+import matplotlib.pyplot as plt
 
 # ------------- Title of the page -------------
 st.set_page_config(page_title='Bitcoin Blockchain live analysis', page_icon='₿', layout='wide')
@@ -108,6 +109,7 @@ start_date = end_date - timedelta(days=date_ranges[date_range])
 # ------------- Load network data -------------
 def get_blockchaincom_data(url, col):
     data = requests.get(url).json()
+    print(data.keys())
     df = pd.DataFrame(data['values']).rename(columns={"x":"Date","y":col})
     df['Date'] = pd.to_datetime(df['Date'], unit='s')
     df = df.sort_values(by="Date", ascending=False)
@@ -155,6 +157,14 @@ with col2:
     delta = round((hash_df.iloc[0]['Hash'] - hash_df.iloc[1]['Hash'])/10**9, 2)
     col2.metric(label="Hash rate attuale", value=f'{current_hash} TH/s', delta=f'{delta} TH/s')
     st.divider()
+    # metric for current fees
+    st.write("Commissioni (in sat/vB) per includere una transazione in ...")
+    fees = requests.get('https://blockstream.info/api/fee-estimates').json()
+    col2_1, col2_2, col2_3 = st.columns(3)
+    col2_1.metric("1 blocco", f"{fees['1']:0.1f}")
+    col2_2.metric("6 blocchi", f"{fees['6']:0.1f}")
+    col2_3.metric("18 blocchi", f"{fees['18']:0.1f}")
+    st.divider()
     # metric for lastest block time
     time_since_last_block = datetime.now() - datetime.fromtimestamp(lastblock['time'])
     last_block_minimg_time = datetime.fromtimestamp(lastblock['time']) - datetime.fromtimestamp(second_to_last_block['blocks'][0]['time'])
@@ -164,15 +174,27 @@ with col2:
         f'{time_since_last_block.seconds//60} minuti e {time_since_last_block.seconds%60} seccondi fa',
         f"{m}in {last_block_minimg_time.seconds//60} minuti e {last_block_minimg_time.seconds%60} secondi",)
     st.divider()
-    # metric for current fees
-    st.write("Commissioni (in sat/vB) per includere una transazione in ...")
-    fees = requests.get('https://blockstream.info/api/fee-estimates').json()
-    col2_1, col2_2, col2_3 = st.columns(3)
-    col2_1.metric("1 blocco", f"{fees['1']:0.1f}")
-    col2_2.metric("6 blocchi", f"{fees['6']:0.1f}")
-    col2_3.metric("18 blocchi", f"{fees['18']:0.1f}")
 
+# ------------- Display pools data in charts -------------
+pools = requests.get('https://api.blockchain.info/pools?timespan=7days').json()
+# sort json based on values
+pools = {k: v for k, v in sorted(pools.items(), key=lambda item: item[1], reverse=True)}
+# Extract the top 9 keys and values, and group all the others in a single key
+sizes = list(pools.values())[:9]
+labels = list(pools.keys())[:9]
+sizes.append(sum(list(pools.values())[9:]))
+labels.append('Others')
 
+explode = [0.2 if k == 'Unknown' else 0 for k in labels]
+colors = ['#FFC300', '#0080FF', '#FF0000', '#00BFFF', '#FF4D4D', '#0052CC', '#800000', '#FF9500', '#FFEA00', '#4B0082']
+hatches = ['oo', 'o', '.', 'OO', 'xx', '-', '..', 'x', 'O']
+
+fig1, ax1 = plt.subplots(figsize=(2, 2))
+ax1.pie(sizes, autopct='%1.1f%%', pctdistance=1.25, explode=explode, colors=colors, hatch=hatches, textprops={'fontsize': 6})
+ax1.legend(labels, loc='center left', bbox_to_anchor=(1.25, 0.5), fontsize=6)
+st.pyplot(fig1, use_container_width=False)
+
+# ------------- Display address and transaction data in graphs -------------
 col1, col2 = st.columns(2)
 # Create a line chart of daily addresses
 with col1:
@@ -187,3 +209,12 @@ with col2:
 
 st.write("Fonte: https://www.blockchain.info")
 st.write("Fonte: https://blockstream.info")
+
+preference = st.sidebar.radio(
+    "Cosa preferisci?",
+    ('-seleziona-', 'Bitcoin', 'Fiat'))
+
+if preference == 'Bitcoin':
+    st.balloons()
+elif preference == 'Fiat':
+    st.snow()
