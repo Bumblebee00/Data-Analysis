@@ -115,7 +115,6 @@ def get_blockchaincom_data(url, col):
     df = df.sort_values(by="Date", ascending=False)
     return df 
 
-@st.cache_data
 def load_heavy_data():
     # Get historical BTC address data from Blockchain.com
     addr_url = 'https://api.blockchain.info/charts/n-unique-addresses?timespan=all&format=json'
